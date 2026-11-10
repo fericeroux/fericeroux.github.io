@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseFit Pro - Guided Training & Program Manager</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Canvas Confetti CDN for workout completion celebrations -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            },
+            accent: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .glass-card:hover {
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    /* Pulse animation for active session indicator */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(34, 197, 94, 0.5); }
+    }
+    .active-workout-glow {
+      animation: pulse-glow 2.5s infinite;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-brand-500 selection:text-slate-950 pb-24 md:pb-12">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Active Banner -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-brand-500/20 text-slate-950 font-black text-2xl">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
+            PULSE<span class="text-brand-400">FIT</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-brand-400 font-bold border border-slate-700">PRO</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Guided Workouts & Rest Timer Tracker</p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Tabs -->
+      <nav class="hidden md:flex items-center space-x-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+        <button onclick="switchTab('player')" id="nav-player" class="nav-tab px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-circle-play"></i>
+          <span>Live Workout</span>
+          <span id="navActiveBadge" class="hidden w-2 h-2 rounded-full bg-brand-400 animate-ping"></span>
+        </button>
+        <button onclick="switchTab('programs')" id="nav-programs" class="nav-tab px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-list-check"></i>
+          <span>Programs</span>
+        </button>
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-tab px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard & Analytics</span>
+        </button>
+        <button onclick="switchTab('history')" id="nav-history" class="nav-tab px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>History Log</span>
+        </button>
+      </nav>
+
+      <!-- Global Data Actions -->
+      <div class="flex items-center space-x-2">
+        <button onclick="exportAppData()" title="Export JSON Data" class="p-2.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition border border-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-download text-brand-400"></i>
+          <span class="hidden lg:inline">Export</span>
+        </button>
+        
+        <label title="Import JSON Data" class="p-2.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition border border-slate-800 flex items-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-upload text-accent-400"></i>
+          <span class="hidden lg:inline">Import</span>
+          <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importAppData(event)">
+        </label>
+
+        <button onclick="promptResetData()" title="Reset Application Data" class="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs transition border border-rose-500/20">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MOBILE NAVIGATION BAR (Sticky Bottom) -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-slate-800 px-3 py-2">
+    <div class="grid grid-cols-4 gap-1">
+      <button onclick="switchTab('player')" id="mobile-nav-player" class="flex flex-col items-center justify-center py-1.5 text-slate-400 rounded-xl">
+        <i class="fa-solid fa-circle-play text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Workout</span>
+      </button>
+      <button onclick="switchTab('programs')" id="mobile-nav-programs" class="flex flex-col items-center justify-center py-1.5 text-slate-400 rounded-xl">
+        <i class="fa-solid fa-list-check text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Programs</span>
+      </button>
+      <button onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="flex flex-col items-center justify-center py-1.5 text-slate-400 rounded-xl">
+        <i class="fa-solid fa-chart-pie text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Stats</span>
+      </button>
+      <button onclick="switchTab('history')" id="mobile-nav-history" class="flex flex-col items-center justify-center py-1.5 text-slate-400 rounded-xl">
+        <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">History</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: LIVE WORKOUT PLAYER ("Follow the Program")                   -->
+    <!-- =================================================================== -->
+    <section id="tab-player" class="tab-content space-y-6">
+      
+      <!-- IDLE / NO ACTIVE WORKOUT STATE -->
+      <div id="playerIdleState" class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-2xl mx-auto my-6 space-y-6">
+        <div class="w-20 h-20 rounded-3xl bg-brand-500/10 text-brand-400 border border-brand-500/20 flex items-center justify-center mx-auto text-3xl shadow-xl shadow-brand-500/10">
+          <i class="fa-solid fa-play"></i>
+        </div>
+        <div class="space-y-2">
+          <h2 class="text-2xl font-extrabold text-white">Ready for Today's Workout?</h2>
+          <p class="text-sm text-slate-400 max-w-md mx-auto">Select a program routine to start an active session with exercise-specific rest timers, target guidelines, and real-time set checkoffs.</p>
+        </div>
+
+        <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button onclick="switchTab('programs')" class="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-slate-950 font-bold rounded-2xl shadow-lg shadow-brand-500/20 transition flex items-center justify-center space-x-2 text-sm">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>Select & Launch Program Routine</span>
+          </button>
+          <button onclick="startQuickAdHocWorkout()" class="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold rounded-2xl border border-slate-700 transition flex items-center justify-center space-x-2 text-sm">
+            <i class="fa-solid fa-bolt text-amber-400"></i>
+            <span>Quick Free-Form Workout</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ACTIVE WORKOUT PLAYER VIEW -->
+      <div id="playerActiveState" class="hidden space-y-6">
+        
+        <!-- Live Header Bar -->
+        <div class="glass-panel rounded-3xl p-6 border border-brand-500/30 active-workout-glow flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="px-3 py-1 rounded-full text-xs font-bold bg-brand-500/20 text-brand-400 border border-brand-500/40 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-brand-400 animate-ping"></span> SESSION IN PROGRESS
+              </span>
+              <span id="playerProgramTag" class="text-xs text-slate-400 font-medium">Program Name</span>
+            </div>
+            <h2 id="playerRoutineTitle" class="text-2xl font-black text-white">Day Routine Name</h2>
+          </div>
+
+          <!-- Session Controls & Elapsed Timer -->
+          <div class="flex items-center justify-between md:justify-end gap-4">
+            
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2 flex items-center space-x-3">
+              <i class="fa-regular fa-clock text-brand-400 text-lg"></i>
+              <div>
+                <p class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Elapsed Time</p>
+                <p id="playerElapsedTimer" class="text-xl font-mono font-bold text-white">00:00</p>
+              </div>
+            </div>
+
+            <button onclick="confirmFinishWorkout()" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-brand-500 to-emerald-400 text-slate-950 font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-brand-500/25 hover:brightness-110 transition flex items-center gap-2">
+              <i class="fa-solid fa-flag-checkered"></i>
+              <span>Finish & Record</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="glass-card rounded-2xl p-4 space-y-2">
+          <div class="flex justify-between text-xs font-semibold">
+            <span class="text-slate-400">Workout Progress</span>
+            <span id="playerProgressPercent" class="text-brand-400 font-bold">0%</span>
+          </div>
+          <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+            <div id="playerProgressBar" class="h-full bg-gradient-to-r from-brand-600 via-brand-500 to-emerald-400 rounded-full transition-all duration-300 w-0"></div>
+          </div>
+        </div>
+
+        <!-- Exercise Step List Cards -->
+        <div id="playerExercisesContainer" class="space-y-6">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Add Ad-hoc Exercise Button during Live Session -->
+        <div class="text-center pt-2">
+          <button onclick="promptAddLiveExercise()" class="px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-brand-400 font-semibold text-xs border border-slate-800 transition inline-flex items-center space-x-2">
+            <i class="fa-solid fa-plus"></i>
+            <span>Add Extra Exercise to Current Session</span>
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: PROGRAM MANAGER & BUILDER                                   -->
+    <!-- =================================================================== -->
+    <section id="tab-programs" class="tab-content hidden space-y-6">
+      
+      <!-- Banner -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card rounded-3xl p-6">
+        <div>
+          <h2 class="text-xl font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-brand-400"></i> Training Programs & Routines
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Customize workouts with exercise-specific rest intervals and set targets.</p>
+        </div>
+        <button onclick="openProgramModal()" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-brand-600 to-emerald-500 text-slate-950 font-bold text-xs shadow-lg shadow-brand-500/20 hover:brightness-110 transition flex items-center space-x-2">
+          <i class="fa-solid fa-plus-circle"></i>
+          <span>Create Custom Program</span>
+        </button>
+      </div>
+
+      <!-- Programs Grid -->
+      <div id="programsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Dynamic Program Cards -->
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 3: DASHBOARD & ANALYTICS                                        -->
+    <!-- =================================================================== -->
+    <section id="tab-dashboard" class="tab-content hidden space-y-8">
+      
+      <!-- Metrics Overview -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Workouts</p>
+            <h3 id="statTotalWorkouts" class="text-3xl font-extrabold text-white">0</h3>
+            <p class="text-xs text-brand-400 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-circle-check"></i> Completed routines
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center text-xl border border-brand-500/20">
+            <i class="fa-solid fa-dumbbell"></i>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Streak</p>
+            <h3 id="statStreak" class="text-3xl font-extrabold text-white">0 <span class="text-sm font-normal text-slate-400">days</span></h3>
+            <p class="text-xs text-amber-400 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-fire"></i> Training frequency
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl border border-amber-500/20">
+            <i class="fa-solid fa-fire-flame-curved"></i>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lifted Volume</p>
+            <h3 id="statTotalVolume" class="text-3xl font-extrabold text-white">0 <span class="text-sm font-normal text-slate-400">kg</span></h3>
+            <p class="text-xs text-accent-400 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-chart-line"></i> Total load completed
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-accent-500/10 text-accent-400 flex items-center justify-center text-xl border border-accent-500/20">
+            <i class="fa-solid fa-weight-hanging"></i>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 flex items-center justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Program Adherence</p>
+            <h3 id="statAdherence" class="text-3xl font-extrabold text-white">100%</h3>
+            <p class="text-xs text-emerald-400 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-bullseye"></i> Sets target completion
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/20">
+            <i class="fa-solid fa-crosshair"></i>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Achievements Milestones -->
+      <div class="glass-card rounded-3xl p-6 border border-slate-800 space-y-4">
+        <div>
+          <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-trophy text-amber-400"></i> Achievement Milestones
+          </h3>
+          <p class="text-xs text-slate-400">Earn badges as you adhere to program rest periods and complete sessions.</p>
+        </div>
+
+        <div id="achievementsBadgeContainer" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          <!-- Dynamic Achievement Badges -->
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-8 glass-card rounded-3xl p-6 border border-slate-800 space-y-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-area text-brand-400"></i> Session Volume & Time Output
+            </h3>
+            <p class="text-xs text-slate-400">Track total lifted weight output alongside total active minutes</p>
+          </div>
+          <div class="relative w-full h-72">
+            <canvas id="volumeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="lg:col-span-4 glass-card rounded-3xl p-6 border border-slate-800 space-y-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-purple-400"></i> Exercise Category Focus
+            </h3>
+            <p class="text-xs text-slate-400">Proportion of Strength, Cardio & Mobility work</p>
+          </div>
+          <div class="relative w-full h-72 flex items-center justify-center">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 4: HISTORY LOG                                                 -->
+    <!-- =================================================================== -->
+    <section id="tab-history" class="tab-content hidden space-y-6">
+      
+      <!-- History Search & Filters -->
+      <div class="glass-card rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div class="relative flex-1">
+          <input type="text" id="historySearchInput" oninput="renderHistoryLog()" placeholder="Search workouts, exercise routines, or notes..." class="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-sm text-white pl-10 focus:ring-2 focus:ring-brand-500 outline-none">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <label class="text-xs text-slate-400 whitespace-nowrap"><i class="fa-solid fa-filter"></i> Category:</label>
+          <select id="historyCategoryFilter" onchange="renderHistoryLog()" class="bg-slate-900 border border-slate-800 rounded-2xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-brand-500 outline-none">
+            <option value="All">All Categories</option>
+            <option value="Strength">Strength</option>
+            <option value="Cardio">Cardio</option>
+            <option value="Mobility">Mobility</option>
+            <option value="Bodyweight">Bodyweight</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- History Feed -->
+      <div id="historyListContainer" class="space-y-4">
+        <!-- Rendered history items -->
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- =================================================================== -->
+  <!-- MODALS & OVERLAYS                                                   -->
+  <!-- =================================================================== -->
+
+  <!-- FLOATING REST TIMER WIDGET -->
+  <div id="restTimerWidget" class="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 glass-panel rounded-3xl p-5 border border-brand-500/40 shadow-2xl hidden w-80 space-y-3">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div class="flex items-center space-x-2 overflow-hidden">
+        <span class="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-stopwatch animate-bounce text-amber-400"></i> Rest Interval
+        </span>
+        <span id="restTimerExerciseLabel" class="text-xs text-slate-300 font-semibold truncate max-w-[120px]">Exercise</span>
+      </div>
+      <button onclick="closeRestTimer()" class="text-slate-500 hover:text-slate-300 text-xs p-1"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="text-center py-2">
+      <p id="restTimerDisplay" class="text-4xl font-black font-mono text-white tracking-widest">01:30</p>
+      <p class="text-[11px] text-slate-400 mt-1">Exercise Specific Recovery Period</p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 pt-1">
+      <button onclick="adjustRestTimer(-15)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 rounded-xl text-xs font-bold text-slate-300 border border-slate-800">-15s</button>
+      <button onclick="toggleRestTimerPause()" id="btnPauseRestTimer" class="px-2 py-1.5 bg-brand-500/20 hover:bg-brand-500/30 text-brand-400 rounded-xl text-xs font-bold border border-brand-500/30">Pause</button>
+      <button onclick="adjustRestTimer(15)" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 rounded-xl text-xs font-bold text-slate-300 border border-slate-800">+15s</button>
+    </div>
+  </div>
+
+  <!-- PROGRAM BUILDER MODAL -->
+  <div id="programModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+    <div class="glass-panel max-w-4xl w-full rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div>
+          <h3 id="programModalTitle" class="text-xl font-extrabold text-white">Create Custom Training Program</h3>
+          <p class="text-xs text-slate-400">Specify workout routines with individual per-exercise rest times (in seconds)</p>
+        </div>
+        <button onclick="closeProgramModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="programForm" onsubmit="handleSaveProgram(event)" class="space-y-6">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Program Name</label>
+            <input type="text" id="progInputTitle" required placeholder="e.g., 4-Day Strength & Muscle Split" class="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Program Focus Category</label>
+            <select id="progInputCategory" class="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none">
+              <option value="Hypertrophy (PPL)">Hypertrophy (PPL)</option>
+              <option value="Strength Split">Strength Split</option>
+              <option value="Cardio & HIIT">Cardio & HIIT</option>
+              <option value="Mobility & Recovery">Mobility & Recovery</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Description</label>
+          <input type="text" id="progInputDesc" placeholder="e.g. Compound lifts with 90s rest paired with isolation work (60s rest)." class="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-sm text-white focus:ring-2 focus:ring-brand-500 outline-none">
+        </div>
+
+        <!-- Routine Days Builder -->
+        <div class="space-y-4 pt-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-slate-200">Program Workout Days & Exercises</h4>
+            <button type="button" onclick="addDayToProgramModal()" class="text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-400 font-semibold border border-slate-700">
+              <i class="fa-solid fa-plus"></i> Add Workout Day
+            </button>
+          </div>
+
+          <div id="programDaysContainer" class="space-y-4">
+            <!-- Rendered workout day items -->
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800">
+          <button type="button" onclick="closeProgramModal()" class="px-5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">Cancel</button>
+          <button type="submit" class="px-6 py-2.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-brand-600 to-emerald-500 text-slate-950 shadow-lg shadow-brand-500/20 hover:brightness-110">Save Program</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-20 sm:bottom-6 left-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- =================================================================== -->
+  <!-- JAVASCRIPT APP LOGIC                                               -->
+  <!-- =================================================================== -->
+  <script>
+    // --- STORAGE KEYS & STATE ---
+    const STORAGE_PROGRAMS = 'pulsefit_pro_programs_v3';
+    const STORAGE_HISTORY = 'pulsefit_pro_history_v3';
+    const STORAGE_ACTIVE = 'pulsefit_pro_active_v3';
+
+    let programs = [];
+    let historyLogs = [];
+    let activeWorkout = null;
+    let activeTab = 'dashboard';
+    
+    // Timer intervals & audio state
+    let workoutTimerInterval = null;
+    let restTimerInterval = null;
+    let restTimeRemaining = 0;
+    let currentRestExerciseName = '';
+    let isRestTimerPaused = false;
+
+    // Chart instances
+    let volumeChartInstance = null;
+    let categoryChartInstance = null;
+
+    // DEFAULT PROGRAM ROUTINES WITH DEDICATED REST TIMES PER EXERCISE
+    const defaultPrograms = [
+      {
+        id: 'prog-ppl-hypert',
+        title: 'Push / Pull / Legs Hypertrophy Split',
+        category: 'Hypertrophy (PPL)',
+        description: 'Comprehensive 3-day split balancing heavy compound lifts with dedicated isolation work.',
+        days: [
+          {
+            dayName: 'Day 1: Push (Chest, Shoulders & Triceps)',
+            exercises: [
+              { name: 'Barbell Bench Press', category: 'Strength', sets: 4, reps: 8, weight: 80, restSec: 90 },
+              { name: 'Incline Dumbbell Press', category: 'Strength', sets: 3, reps: 10, weight: 28, restSec: 60 },
+              { name: 'Overhead Dumbbell Press', category: 'Strength', sets: 3, reps: 10, weight: 22, restSec: 60 },
+              { name: 'Triceps Rope Pushdown', category: 'Strength', sets: 3, reps: 12, weight: 25, restSec: 45 }
+            ]
+          },
+          {
+            dayName: 'Day 2: Pull (Back & Biceps)',
+            exercises: [
+              { name: 'Barbell Bent-Over Row', category: 'Strength', sets: 4, reps: 8, weight: 70, restSec: 90 },
+              { name: 'Lat Pulldown', category: 'Strength', sets: 3, reps: 10, weight: 65, restSec: 60 },
+              { name: 'Seated Cable Row', category: 'Strength', sets: 3, reps: 10, weight: 60, restSec: 60 },
+              { name: 'Barbell Bicep Curl', category: 'Strength', sets: 3, reps: 12, weight: 30, restSec: 45 }
+            ]
+          },
+          {
+            dayName: 'Day 3: Legs & Core',
+            exercises: [
+              { name: 'Barbell Back Squat', category: 'Strength', sets: 4, reps: 8, weight: 100, restSec: 120 },
+              { name: 'Romanian Deadlift', category: 'Strength', sets: 3, reps: 10, weight: 85, restSec: 90 },
+              { name: 'Leg Extension', category: 'Strength', sets: 3, reps: 12, weight: 55, restSec: 45 },
+              { name: 'Hanging Leg Raise', category: 'Bodyweight', sets: 3, reps: 15, weight: 0, restSec: 45 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'prog-cardio-hiit',
+        title: 'Cardio & HIIT Stamina Blast',
+        category: 'Cardio & HIIT',
+        description: 'High tempo conditioning workouts with short 30s-45s recovery windows.',
+        days: [
+          {
+            dayName: 'Day 1: Conditioning & Core',
+            exercises: [
+              { name: 'Treadmill Interval Run', category: 'Cardio', sets: 4, reps: 1, weight: 0, restSec: 30 },
+              { name: 'Kettlebell Swings', category: 'Strength', sets: 4, reps: 20, weight: 16, restSec: 45 },
+              { name: 'Plank Hold', category: 'Bodyweight', sets: 3, reps: 1, weight: 0, restSec: 30 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    // Seed Initial History Demo
+    const sampleHistory = [
+      {
+        id: 'hist-demo-1',
+        date: getRelativeDate(-2),
+        programTitle: 'Push / Pull / Legs Hypertrophy Split',
+        routineTitle: 'Day 1: Push (Chest, Shoulders & Triceps)',
+        durationMins: 48,
+        totalVolume: 4320,
+        completedSetsCount: 13,
+        targetSetsCount: 13,
+        exercises: [
+          { name: 'Barbell Bench Press', category: 'Strength', restSec: 90, setsCompleted: [{ reps: 8, weight: 80 }, { reps: 8, weight: 80 }, { reps: 8, weight: 80 }, { reps: 8, weight: 80 }] },
+          { name: 'Incline Dumbbell Press', category: 'Strength', restSec: 60, setsCompleted: [{ reps: 10, weight: 28 }, { reps: 10, weight: 28 }, { reps: 10, weight: 28 }] },
+          { name: 'Triceps Rope Pushdown', category: 'Strength', restSec: 45, setsCompleted: [{ reps: 12, weight: 25 }, { reps: 12, weight: 25 }, { reps: 12, weight: 25 }] }
+        ]
+      }
+    ];
+
+    function getRelativeDate(offset) {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return d.toISOString().split('T')[0];
+    }
+
+    // WEB AUDIO API TIMER BEEP
+    function playAudioBeep(freq = 880, duration = 0.25) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        console.log('Audio Context error:', e);
+      }
+    }
+
+    // --- INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      switchTab('dashboard');
+      checkActiveWorkoutState();
+      renderApp();
+    });
+
+    function loadState() {
+      try {
+        const p = localStorage.getItem(STORAGE_PROGRAMS);
+        programs = p ? JSON.parse(p) : [...defaultPrograms];
+
+        const h = localStorage.getItem(STORAGE_HISTORY);
+        historyLogs = h ? JSON.parse(h) : [...sampleHistory];
+
+        const a = localStorage.getItem(STORAGE_ACTIVE);
+        activeWorkout = a ? JSON.parse(a) : null;
+      } catch(e) {
+        console.error('State load error:', e);
+        programs = [...defaultPrograms];
+        historyLogs = [...sampleHistory];
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_PROGRAMS, JSON.stringify(programs));
+      localStorage.setItem(STORAGE_HISTORY, JSON.stringify(historyLogs));
+      if (activeWorkout) {
+        localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(activeWorkout));
+      } else {
+        localStorage.removeItem(STORAGE_ACTIVE);
+      }
+    }
+
+    // --- NAVIGATION TABS ---
+    function switchTab(tabId) {
+      activeTab = tabId;
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.classList.remove('bg-brand-500/10', 'text-brand-400', 'border', 'border-brand-500/20');
+        btn.classList.add('text-slate-400');
+      });
+      const currentNav = document.getElementById(`nav-${tabId}`);
+      if (currentNav) {
+        currentNav.classList.add('bg-brand-500/10', 'text-brand-400', 'border', 'border-brand-500/20');
+        currentNav.classList.remove('text-slate-400');
+      }
+
+      if (tabId === 'dashboard') renderDashboard();
+      if (tabId === 'programs') renderProgramsGrid();
+      if (tabId === 'history') renderHistoryLog();
+      if (tabId === 'player') renderLiveWorkoutPlayer();
+    }
+
+    // --- LIVE WORKOUT PLAYER LOGIC ---
+    function startWorkoutFromRoutine(programId, dayIndex) {
+      const prog = programs.find(p => p.id === programId);
+      if (!prog || !prog.days[dayIndex]) return;
+
+      const day = prog.days[dayIndex];
+
+      activeWorkout = {
+        id: 'session-' + Date.now(),
+        programTitle: prog.title,
+        routineTitle: day.dayName,
+        startTime: Date.now(),
+        elapsedSeconds: 0,
+        exercises: day.exercises.map((ex, exIdx) => {
+          const setsArr = [];
+          for (let s = 1; s <= ex.sets; s++) {
+            setsArr.push({
+              setNum: s,
+              targetReps: ex.reps || 10,
+              targetWeight: ex.weight || 0,
+              actualReps: ex.reps || 10,
+              actualWeight: ex.weight || 0,
+              completed: false
+            });
+          }
+          return {
+            id: 'ex-' + exIdx,
+            name: ex.name,
+            category: ex.category || 'Strength',
+            restSec: ex.restSec !== undefined ? ex.restSec : 60, // Per-exercise rest time
+            sets: setsArr
+          };
+        })
+      };
+
+      saveState();
+      checkActiveWorkoutState();
+      switchTab('player');
+      startWorkoutClock();
+      showToast(`Started Routine: ${day.dayName}`, 'success');
+    }
+
+    function startQuickAdHocWorkout() {
+      activeWorkout = {
+        id: 'session-' + Date.now(),
+        programTitle: 'Quick Workout',
+        routineTitle: 'Ad-hoc Session',
+        startTime: Date.now(),
+        elapsedSeconds: 0,
+        exercises: [
+          {
+            id: 'ex-0',
+            name: 'Barbell Bench Press',
+            category: 'Strength',
+            restSec: 90, // Default rest
+            sets: [
+              { setNum: 1, targetReps: 10, targetWeight: 60, actualReps: 10, actualWeight: 60, completed: false },
+              { setNum: 2, targetReps: 10, targetWeight: 60, actualReps: 10, actualWeight: 60, completed: false },
+              { setNum: 3, targetReps: 10, targetWeight: 60, actualReps: 10, actualWeight: 60, completed: false }
+            ]
+          }
+        ]
+      };
+
+      saveState();
+      checkActiveWorkoutState();
+      switchTab('player');
+      startWorkoutClock();
+      showToast('Quick Workout Started!', 'info');
+    }
+
+    function checkActiveWorkoutState() {
+      const badge = document.getElementById('navActiveBadge');
+      if (activeWorkout) {
+        if (badge) badge.classList.remove('hidden');
+        document.getElementById('playerIdleState').classList.add('hidden');
+        document.getElementById('playerActiveState').classList.remove('hidden');
+        if (!workoutTimerInterval) startWorkoutClock();
+      } else {
+        if (badge) badge.classList.add('hidden');
+        document.getElementById('playerIdleState').classList.remove('hidden');
+        document.getElementById('playerActiveState').classList.add('hidden');
+        if (workoutTimerInterval) {
+          clearInterval(workoutTimerInterval);
+          workoutTimerInterval = null;
+        }
+      }
+    }
+
+    function startWorkoutClock() {
+      if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+      workoutTimerInterval = setInterval(() => {
+        if (!activeWorkout) return;
+        activeWorkout.elapsedSeconds++;
+        const mins = Math.floor(activeWorkout.elapsedSeconds / 60).toString().padStart(2, '0');
+        const secs = (activeWorkout.elapsedSeconds % 60).toString().padStart(2, '0');
+        const timerEl = document.getElementById('playerElapsedTimer');
+        if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function renderLiveWorkoutPlayer() {
+      if (!activeWorkout) return;
+
+      document.getElementById('playerProgramTag').textContent = activeWorkout.programTitle;
+      document.getElementById('playerRoutineTitle').textContent = activeWorkout.routineTitle;
+
+      const container = document.getElementById('playerExercisesContainer');
+      container.innerHTML = '';
+
+      let totalSetsCount = 0;
+      let completedSetsCount = 0;
+
+      activeWorkout.exercises.forEach((ex, exIdx) => {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-3xl p-6 border border-slate-800 space-y-4';
+
+        let setsRowsHtml = '';
+        ex.sets.forEach((st, setIdx) => {
+          totalSetsCount++;
+          if (st.completed) completedSetsCount++;
+
+          setsRowsHtml += `
+            <tr class="border-b border-slate-800/60 ${st.completed ? 'bg-brand-500/5' : ''}">
+              <td class="py-3 px-2 text-center text-xs font-bold text-slate-400">#${st.setNum}</td>
+              <td class="py-3 px-2 text-center text-xs text-slate-400 font-mono">
+                ${st.targetWeight}kg × ${st.targetReps}
+              </td>
+              <td class="py-3 px-2 text-center">
+                <input type="number" step="0.5" value="${st.actualWeight}" onchange="updateSetVal(${exIdx}, ${setIdx}, 'actualWeight', this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded-xl py-1 px-2 text-xs text-center font-bold text-white outline-none focus:border-brand-500">
+              </td>
+              <td class="py-3 px-2 text-center">
+                <input type="number" value="${st.actualReps}" onchange="updateSetVal(${exIdx}, ${setIdx}, 'actualReps', this.value)" class="w-16 bg-slate-900 border border-slate-700 rounded-xl py-1 px-2 text-xs text-center font-bold text-white outline-none focus:border-brand-500">
+              </td>
+              <td class="py-3 px-2 text-center text-xs text-amber-400 font-bold font-mono">
+                ${ex.restSec}s
+              </td>
+              <td class="py-3 px-2 text-center">
+                <button onclick="toggleCompleteSet(${exIdx}, ${setIdx})" class="w-8 h-8 rounded-xl transition flex items-center justify-center mx-auto ${st.completed ? 'bg-brand-500 text-slate-950 font-black shadow-lg shadow-brand-500/30' : 'bg-slate-900 text-slate-600 hover:text-slate-300 border border-slate-700'}">
+                  <i class="fa-solid fa-check text-xs"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-slate-800 text-brand-400 uppercase tracking-wider">${ex.category}</span>
+              <h3 class="text-lg font-extrabold text-white mt-1">${ex.name}</h3>
+            </div>
+            
+            <!-- Per-Exercise Rest Time Column / Setting -->
+            <div class="flex items-center space-x-3 bg-slate-900/90 px-3 py-1.5 rounded-2xl border border-slate-800">
+              <span class="text-xs text-amber-400 font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-stopwatch"></i> Exercise Rest:
+              </span>
+              <input type="number" value="${ex.restSec}" step="5" min="0" onchange="updateExerciseRestTime(${exIdx}, this.value)" class="w-16 bg-slate-950 border border-slate-700 rounded-xl px-2 py-1 text-xs text-center font-bold text-amber-400 outline-none focus:border-brand-500">
+              <span class="text-xs text-slate-400 font-medium">sec</span>
+              <button onclick="addSetToLiveExercise(${exIdx})" class="text-xs px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-400 font-bold border border-slate-700">+ Set</button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                  <th class="py-2 px-2 text-center">Set</th>
+                  <th class="py-2 px-2 text-center">Target</th>
+                  <th class="py-2 px-2 text-center">Actual Kg</th>
+                  <th class="py-2 px-2 text-center">Actual Reps</th>
+                  <th class="py-2 px-2 text-center text-amber-400">Rest</th>
+                  <th class="py-2 px-2 text-center">Done</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${setsRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const pct = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
+      document.getElementById('playerProgressBar').style.width = pct + '%';
+      document.getElementById('playerProgressPercent').textContent = pct + '%';
+    }
+
+    function updateSetVal(exIdx, setIdx, key, val) {
+      if (!activeWorkout) return;
+      activeWorkout.exercises[exIdx].sets[setIdx][key] = parseFloat(val) || 0;
+      saveState();
+    }
+
+    function updateExerciseRestTime(exIdx, val) {
+      if (!activeWorkout) return;
+      const restSec = Math.max(0, parseInt(val) || 0);
+      activeWorkout.exercises[exIdx].restSec = restSec;
+      saveState();
+      showToast(`Updated rest time for ${activeWorkout.exercises[exIdx].name} to ${restSec}s`, 'info');
+      renderLiveWorkoutPlayer();
+    }
+
+    function toggleCompleteSet(exIdx, setIdx) {
+      if (!activeWorkout) return;
+      const ex = activeWorkout.exercises[exIdx];
+      const setObj = ex.sets[setIdx];
+      setObj.completed = !setObj.completed;
+
+      if (setObj.completed) {
+        // Automatically launch rest timer with THIS specific exercise's restSec!
+        const restSec = ex.restSec !== undefined ? ex.restSec : 60;
+        startRestTimer(restSec, ex.name);
+        playAudioBeep(600, 0.15);
+      }
+
+      saveState();
+      renderLiveWorkoutPlayer();
+    }
+
+    function addSetToLiveExercise(exIdx) {
+      if (!activeWorkout) return;
+      const ex = activeWorkout.exercises[exIdx];
+      const lastSet = ex.sets[ex.sets.length - 1] || { targetReps: 10, targetWeight: 50 };
+      ex.sets.push({
+        setNum: ex.sets.length + 1,
+        targetReps: lastSet.targetReps,
+        targetWeight: lastSet.targetWeight,
+        actualReps: lastSet.targetReps,
+        actualWeight: lastSet.targetWeight,
+        completed: false
+      });
+      saveState();
+      renderLiveWorkoutPlayer();
+    }
+
+    function promptAddLiveExercise() {
+      const name = prompt('Enter exercise name:');
+      if (!name) return;
+      const restInput = prompt('Enter rest time in seconds for this exercise:', '60');
+      const restSec = parseInt(restInput) || 60;
+
+      activeWorkout.exercises.push({
+        id: 'ex-' + Date.now(),
+        name: name,
+        category: 'Strength',
+        restSec: restSec,
+        sets: [
+          { setNum: 1, targetReps: 10, targetWeight: 50, actualReps: 10, actualWeight: 50, completed: false },
+          { setNum: 2, targetReps: 10, targetWeight: 50, actualReps: 10, actualWeight: 50, completed: false }
+        ]
+      });
+      saveState();
+      renderLiveWorkoutPlayer();
+      showToast(`Added ${name} (${restSec}s rest) to current session`, 'success');
+    }
+
+    // --- REST TIMER FLOATING WIDGET ---
+    function startRestTimer(seconds, exerciseName = '') {
+      if (seconds <= 0) return;
+      restTimeRemaining = seconds;
+      currentRestExerciseName = exerciseName;
+      isRestTimerPaused = false;
+      
+      document.getElementById('restTimerWidget').classList.remove('hidden');
+      document.getElementById('restTimerExerciseLabel').textContent = exerciseName || 'Exercise';
+      updateRestTimerDisplay();
+
+      if (restTimerInterval) clearInterval(restTimerInterval);
+      restTimerInterval = setInterval(() => {
+        if (!isRestTimerPaused) {
+          restTimeRemaining--;
+          updateRestTimerDisplay();
+          if (restTimeRemaining <= 0) {
+            clearInterval(restTimerInterval);
+            playAudioBeep(880, 0.3);
+            setTimeout(() => playAudioBeep(1100, 0.4), 250);
+            showToast(`Rest period complete for ${exerciseName}! Ready for next set!`, 'info');
+            closeRestTimer();
+          }
+        }
+      }, 1000);
+    }
+
+    function updateRestTimerDisplay() {
+      const m = Math.floor(restTimeRemaining / 60).toString().padStart(2, '0');
+      const s = (restTimeRemaining % 60).toString().padStart(2, '0');
+      document.getElementById('restTimerDisplay').textContent = `${m}:${s}`;
+    }
+
+    function toggleRestTimerPause() {
+      isRestTimerPaused = !isRestTimerPaused;
+      document.getElementById('btnPauseRestTimer').textContent = isRestTimerPaused ? 'Resume' : 'Pause';
+    }
+
+    function adjustRestTimer(delta) {
+      restTimeRemaining = Math.max(0, restTimeRemaining + delta);
+      updateRestTimerDisplay();
+    }
+
+    function closeRestTimer() {
+      if (restTimerInterval) clearInterval(restTimerInterval);
+      document.getElementById('restTimerWidget').classList.add('hidden');
+    }
+
+    // --- FINISH SESSION ---
+    function confirmFinishWorkout() {
+      if (!activeWorkout) return;
+
+      let completedSets = 0;
+      let targetSets = 0;
+      let totalVolume = 0;
+
+      activeWorkout.exercises.forEach(ex => {
+        ex.sets.forEach(st => {
+          targetSets++;
+          if (st.completed) {
+            completedSets++;
+            totalVolume += (st.actualWeight * st.actualReps);
+          }
+        });
+      });
+
+      const durationMins = Math.max(1, Math.round(activeWorkout.elapsedSeconds / 60));
+
+      const record = {
+        id: 'hist-' + Date.now(),
+        date: getRelativeDate(0),
+        programTitle: activeWorkout.programTitle,
+        routineTitle: activeWorkout.routineTitle,
+        durationMins: durationMins,
+        totalVolume: totalVolume,
+        completedSetsCount: completedSets,
+        targetSetsCount: targetSets,
+        exercises: activeWorkout.exercises.map(ex => ({
+          name: ex.name,
+          category: ex.category,
+          restSec: ex.restSec,
+          setsCompleted: ex.sets.filter(s => s.completed).map(s => ({ reps: s.actualReps, weight: s.actualWeight }))
+        }))
+      };
+
+      historyLogs.unshift(record);
+      activeWorkout = null;
+      saveState();
+      checkActiveWorkoutState();
+
+      if (window.confetti) {
+        confetti({ particleCount: 110, spread: 80, origin: { y: 0.6 } });
+      }
+
+      showToast(`🎉 Session Logged! Volume: ${totalVolume}kg in ${durationMins}m`, 'success');
+      switchTab('dashboard');
+    }
+
+    // --- PROGRAM MANAGER & BUILDER ---
+    function renderProgramsGrid() {
+      const container = document.getElementById('programsGrid');
+      container.innerHTML = '';
+
+      programs.forEach(prog => {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-3xl p-6 border border-slate-800 space-y-4 flex flex-col justify-between';
+
+        let daysListHtml = '';
+        prog.days.forEach((day, dayIdx) => {
+
+          let exSummaryRows = '';
+          day.exercises.forEach(ex => {
+            exSummaryRows += `
+              <tr class="border-b border-slate-800/40 text-[11px]">
+                <td class="py-1.5 px-2 font-bold text-white">${ex.name}</td>
+                <td class="py-1.5 px-2 text-center text-slate-400 font-mono">${ex.sets} × ${ex.reps} @ ${ex.weight}kg</td>
+                <td class="py-1.5 px-2 text-right text-amber-400 font-bold font-mono"><i class="fa-solid fa-stopwatch text-[10px]"></i> ${ex.restSec || 60}s</td>
+              </tr>
+            `;
+          });
+
+          daysListHtml += `
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-black text-white">${day.dayName}</p>
+                <button onclick="startWorkoutFromRoutine('${prog.id}', ${dayIdx})" class="px-3 py-1.5 rounded-xl bg-brand-500/20 hover:bg-brand-500/30 text-brand-400 text-xs font-extrabold border border-brand-500/30 transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-play text-[10px]"></i> Launch Routine
+                </button>
+              </div>
+
+              <div class="overflow-x-auto pt-1">
+                <table class="w-full text-left">
+                  <thead>
+                    <tr class="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
+                      <th class="py-1 px-2">Exercise</th>
+                      <th class="py-1 px-2 text-center">Sets/Target</th>
+                      <th class="py-1 px-2 text-right text-amber-400">Rest Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${exSummaryRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-start justify-between">
+              <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-brand-400 border border-slate-700">${prog.category}</span>
+              <div class="flex items-center space-x-2">
+                <button onclick="openProgramModal('${prog.id}')" title="Edit Program" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-400 text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-pen-to-square"></i> Edit
+                </button>
+                <button onclick="deleteProgram('${prog.id}')" title="Delete Program" class="p-1 text-slate-500 hover:text-rose-400 text-xs transition">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-xl font-black text-white">${prog.title}</h3>
+              <p class="text-xs text-slate-400 mt-1 line-clamp-2">${prog.description}</p>
+            </div>
+
+            <div class="space-y-3 pt-2">
+              <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Routines & Exercises Split</p>
+              ${daysListHtml}
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Modal Program Builder Dynamic Handlers
+    let modalTempDays = [];
+    let editingProgramId = null;
+
+    function openProgramModal(progId = null) {
+      editingProgramId = progId;
+      const titleEl = document.getElementById('programModalTitle');
+
+      if (progId) {
+        const prog = programs.find(p => p.id === progId);
+        if (!prog) return;
+        if (titleEl) titleEl.textContent = 'Edit Training Program';
+        document.getElementById('progInputTitle').value = prog.title || '';
+        document.getElementById('progInputCategory').value = prog.category || 'Hypertrophy (PPL)';
+        document.getElementById('progInputDesc').value = prog.description || '';
+        modalTempDays = JSON.parse(JSON.stringify(prog.days || []));
+      } else {
+        if (titleEl) titleEl.textContent = 'Create Custom Training Program';
+        document.getElementById('progInputTitle').value = '';
+        document.getElementById('progInputCategory').value = 'Hypertrophy (PPL)';
+        document.getElementById('progInputDesc').value = '';
+        modalTempDays = [
+          {
+            dayName: 'Day 1: Heavy Compounds Split',
+            exercises: [
+              { name: 'Barbell Bench Press', category: 'Strength', sets: 4, reps: 8, weight: 80, restSec: 90 },
+              { name: 'Incline Dumbbell Press', category: 'Strength', sets: 3, reps: 10, weight: 26, restSec: 60 }
+            ]
+          }
+        ];
+      }
+
+      renderModalDays();
+      document.getElementById('programModal').classList.remove('hidden');
+    }
+
+    function closeProgramModal() {
+      editingProgramId = null;
+      document.getElementById('programModal').classList.add('hidden');
+    }
+
+    function renderModalDays() {
+      const container = document.getElementById('programDaysContainer');
+      container.innerHTML = '';
+
+      modalTempDays.forEach((day, dIdx) => {
+        const dayBox = document.createElement('div');
+        dayBox.className = 'p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3';
+
+        let exRowsHtml = '';
+        day.exercises.forEach((ex, eIdx) => {
+          exRowsHtml += `
+            <div class="grid grid-cols-12 gap-2 items-center text-xs pt-1">
+              <input type="text" value="${ex.name}" placeholder="Exercise Name" onchange="modalTempDays[${dIdx}].exercises[${eIdx}].name=this.value" class="col-span-4 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-white outline-none focus:border-brand-500">
+              <input type="number" value="${ex.sets}" placeholder="Sets" title="Sets" onchange="modalTempDays[${dIdx}].exercises[${eIdx}].sets=parseInt(this.value)" class="col-span-2 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1.5 text-center text-white outline-none focus:border-brand-500">
+              <input type="number" value="${ex.reps}" placeholder="Reps" title="Reps" onchange="modalTempDays[${dIdx}].exercises[${eIdx}].reps=parseInt(this.value)" class="col-span-2 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1.5 text-center text-white outline-none focus:border-brand-500">
+              <input type="number" value="${ex.weight}" placeholder="Kg" title="Weight (kg)" onchange="modalTempDays[${dIdx}].exercises[${eIdx}].weight=parseFloat(this.value)" class="col-span-2 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1.5 text-center text-white outline-none focus:border-brand-500">
+              
+              <!-- DEDICATED REST TIME COLUMN IN BUILDER -->
+              <div class="col-span-1 flex items-center justify-center">
+                <input type="number" value="${ex.restSec || 60}" step="5" title="Rest Time (seconds)" placeholder="Rest (s)" onchange="modalTempDays[${dIdx}].exercises[${eIdx}].restSec=parseInt(this.value)" class="w-full bg-slate-950 border border-amber-500/30 rounded-xl px-1 py-1.5 text-center text-amber-400 font-mono font-bold outline-none focus:border-amber-400">
+              </div>
+
+              <button type="button" onclick="modalTempDays[${dIdx}].exercises.splice(${eIdx},1); renderModalDays();" class="col-span-1 text-slate-500 hover:text-rose-400 text-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          `;
+        });
+
+        dayBox.innerHTML = `
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <input type="text" value="${day.dayName}" onchange="modalTempDays[${dIdx}].dayName=this.value" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1 text-xs font-bold text-white w-2/3">
+            <button type="button" onclick="addExerciseToModalDay(${dIdx})" class="text-xs px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-400 font-semibold border border-slate-700">+ Exercise</button>
+          </div>
+          
+          <div class="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase px-1 pt-1">
+            <span class="col-span-4">Exercise Name</span>
+            <span class="col-span-2 text-center">Sets</span>
+            <span class="col-span-2 text-center">Reps</span>
+            <span class="col-span-2 text-center">Kg</span>
+            <span class="col-span-1 text-center text-amber-400">Rest(s)</span>
+            <span class="col-span-1 text-center">Del</span>
+          </div>
+
+          <div class="space-y-1">
+            ${exRowsHtml}
+          </div>
+        `;
+        container.appendChild(dayBox);
+      });
+    }
+
+    function addDayToProgramModal() {
+      modalTempDays.push({
+        dayName: `Day ${modalTempDays.length + 1}: Routine Split`,
+        exercises: [{ name: 'Push-ups', category: 'Bodyweight', sets: 3, reps: 15, weight: 0, restSec: 45 }]
+      });
+      renderModalDays();
+    }
+
+    function addExerciseToModalDay(dIdx) {
+      modalTempDays[dIdx].exercises.push({
+        name: 'Dumbbell Bicep Curl', category: 'Strength', sets: 3, reps: 10, weight: 14, restSec: 60
+      });
+      renderModalDays();
+    }
+
+    function handleSaveProgram(e) {
+      e.preventDefault();
+      const title = document.getElementById('progInputTitle').value.trim();
+      const cat = document.getElementById('progInputCategory').value;
+      const desc = document.getElementById('progInputDesc').value.trim();
+
+      if (!title || modalTempDays.length === 0) return;
+
+      if (editingProgramId) {
+        const progIndex = programs.findIndex(p => p.id === editingProgramId);
+        if (progIndex !== -1) {
+          programs[progIndex].title = title;
+          programs[progIndex].category = cat;
+          programs[progIndex].description = desc || 'Custom multi-day training program.';
+          programs[progIndex].days = modalTempDays;
+          showToast('Program updated successfully!', 'success');
+        }
+      } else {
+        const newProg = {
+          id: 'prog-' + Date.now(),
+          title: title,
+          category: cat,
+          description: desc || 'Custom multi-day training program.',
+          days: modalTempDays
+        };
+        programs.push(newProg);
+        showToast('Program saved successfully!', 'success');
+      }
+
+      editingProgramId = null;
+      saveState();
+      closeProgramModal();
+      renderProgramsGrid();
+    }
+
+    function deleteProgram(progId) {
+      programs = programs.filter(p => p.id !== progId);
+      saveState();
+      renderProgramsGrid();
+      showToast('Program removed', 'info');
+    }
+
+    // --- DASHBOARD & METRICS ---
+    function renderDashboard() {
+      const totalWorkouts = historyLogs.length;
+      let totalVol = 0;
+      let totalCompletedSets = 0;
+      let totalTargetSets = 0;
+
+      historyLogs.forEach(h => {
+        totalVol += (h.totalVolume || 0);
+        totalCompletedSets += (h.completedSetsCount || 0);
+        totalTargetSets += (h.targetSetsCount || h.completedSetsCount || 1);
+      });
+
+      const streak = calculateStreak();
+      const adherencePct = totalTargetSets > 0 ? Math.round((totalCompletedSets / totalTargetSets) * 100) : 100;
+
+      document.getElementById('statTotalWorkouts').textContent = totalWorkouts;
+      document.getElementById('statStreak').innerHTML = `${streak} <span class="text-sm font-normal text-slate-400">days</span>`;
+      document.getElementById('statTotalVolume').innerHTML = `${totalVol.toLocaleString()} <span class="text-sm font-normal text-slate-400">kg</span>`;
+      document.getElementById('statAdherence').textContent = `${adherencePct}%`;
+
+      renderAchievements(streak, totalVol, totalWorkouts);
+      renderAnalyticsCharts();
+    }
+
+    function calculateStreak() {
+      if (historyLogs.length === 0) return 0;
+      const dates = [...new Set(historyLogs.map(h => h.date))].sort().reverse();
+      let streak = 0;
+      let currentCheck = new Date();
+
+      for (let i = 0; i < dates.length; i++) {
+        const logDate = new Date(dates[i]);
+        const diffDays = Math.floor((currentCheck - logDate) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 1) {
+          streak++;
+          currentCheck = logDate;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    function renderAchievements(streak, volume, workouts) {
+      const container = document.getElementById('achievementsBadgeContainer');
+      container.innerHTML = '';
+
+      const badges = [
+        { title: 'First Steps', desc: '1 Workout Completed', unlocked: workouts >= 1, icon: 'fa-shoe-prints', color: 'text-brand-400' },
+        { title: 'Streak Master', desc: '3-Day Active Streak', unlocked: streak >= 3, icon: 'fa-fire', color: 'text-amber-400' },
+        { title: 'Iron Will', desc: '7-Day Active Streak', unlocked: streak >= 7, icon: 'fa-bolt', color: 'text-amber-500' },
+        { title: 'Ton Lifter', desc: '1,000kg Total Volume', unlocked: volume >= 1000, icon: 'fa-dumbbell', color: 'text-accent-400' },
+        { title: 'Titan Load', desc: '10,000kg Total Volume', unlocked: volume >= 10000, icon: 'fa-crown', color: 'text-purple-400' },
+        { title: 'Disciplined', desc: 'Rest Timers Followed', unlocked: workouts >= 3, icon: 'fa-stopwatch', color: 'text-emerald-400' }
+      ];
+
+      badges.forEach(b => {
+        const badgeEl = document.createElement('div');
+        badgeEl.className = `p-3 rounded-2xl border text-center transition ${b.unlocked ? 'bg-slate-900 border-slate-700 opacity-100' : 'bg-slate-950/40 border-slate-900 opacity-40'}`;
+        badgeEl.innerHTML = `
+          <div class="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center mx-auto text-lg ${b.color} mb-2">
+            <i class="fa-solid ${b.icon}"></i>
+          </div>
+          <p class="text-xs font-bold text-white">${b.title}</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">${b.desc}</p>
+        `;
+        container.appendChild(badgeEl);
+      });
+    }
+
+    function renderAnalyticsCharts() {
+      const volCtx = document.getElementById('volumeChart').getContext('2d');
+      const sortedHistory = [...historyLogs].reverse().slice(-7);
+
+      const labels = sortedHistory.map(h => h.date);
+      const volumes = sortedHistory.map(h => h.totalVolume || 0);
+      const durations = sortedHistory.map(h => h.durationMins || 0);
+
+      if (volumeChartInstance) volumeChartInstance.destroy();
+
+      volumeChartInstance = new Chart(volCtx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Volume (kg)',
+              data: volumes,
+              backgroundColor: 'rgba(34, 197, 94, 0.7)',
+              borderRadius: 8,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Duration (mins)',
+              data: durations,
+              type: 'line',
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              borderWidth: 2,
+              tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } } },
+          scales: {
+            x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#38bdf8' } }
+          }
+        }
+      });
+
+      const catCtx = document.getElementById('categoryChart').getContext('2d');
+      const categoryCounts = { Strength: 0, Cardio: 0, Mobility: 0, Bodyweight: 0 };
+
+      historyLogs.forEach(h => {
+        h.exercises.forEach(ex => {
+          const cat = ex.category || 'Strength';
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        });
+      });
+
+      if (categoryChartInstance) categoryChartInstance.destroy();
+
+      categoryChartInstance = new Chart(catCtx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(categoryCounts),
+          datasets: [{
+            data: Object.values(categoryCounts),
+            backgroundColor: ['#f43f5e', '#38bdf8', '#a855f7', '#10b981'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } } }
+        }
+      });
+    }
+
+    // --- HISTORY LOG ---
+    function renderHistoryLog() {
+      const container = document.getElementById('historyListContainer');
+      const search = document.getElementById('historySearchInput').value.toLowerCase();
+      container.innerHTML = '';
+
+      const filtered = historyLogs.filter(h => {
+        return h.routineTitle.toLowerCase().includes(search) || h.programTitle.toLowerCase().includes(search);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="glass-card rounded-3xl p-8 text-center text-slate-500">
+            <i class="fa-solid fa-clock-rotate-left text-3xl mb-2"></i>
+            <p class="text-sm">No recorded workouts found.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(h => {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-3xl p-6 border border-slate-800 space-y-4';
+
+        let exDetailsHtml = '';
+        h.exercises.forEach(ex => {
+          const setsStr = ex.setsCompleted.map(s => `${s.weight}kg×${s.reps}`).join(', ');
+          exDetailsHtml += `
+            <div class="text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-white">${ex.name}</span>
+                <span class="text-[10px] text-amber-400 ml-2 font-mono"><i class="fa-solid fa-stopwatch"></i> ${ex.restSec || 60}s rest</span>
+              </div>
+              <span class="text-slate-400 font-mono">${setsStr || 'Completed'}</span>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">${h.programTitle}</span>
+              <h3 class="text-base font-extrabold text-white mt-1">${h.routineTitle}</h3>
+              <p class="text-xs text-slate-400"><i class="fa-regular fa-calendar"></i> ${h.date} • <i class="fa-regular fa-clock"></i> ${h.durationMins} mins</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <div class="text-right">
+                <p class="text-lg font-black text-brand-400">${h.totalVolume} kg</p>
+                <p class="text-[11px] text-slate-500">${h.completedSetsCount}/${h.targetSetsCount} sets done</p>
+              </div>
+              <button onclick="deleteHistoryLog('${h.id}')" title="Delete Workout Record" class="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs transition border border-rose-500/20">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+          <div class="space-y-1.5 pt-1">
+            ${exDetailsHtml}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function deleteHistoryLog(histId) {
+      historyLogs = historyLogs.filter(h => h.id !== histId);
+      saveState();
+      renderHistoryLog();
+      renderDashboard();
+      showToast('Workout record deleted', 'info');
+    }
+
+    // --- IMPORT / EXPORT / RESET ---
+    function exportAppData() {
+      const data = { programs, historyLogs };
+      const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const a = document.createElement('a');
+      a.href = str;
+      a.download = `PulseFit_Backup_${getRelativeDate(0)}.json`;
+      a.click();
+      showToast('Data exported successfully!', 'success');
+    }
+
+    function importAppData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data.programs && data.historyLogs) {
+            programs = data.programs;
+            historyLogs = data.historyLogs;
+            saveState();
+            renderApp();
+            showToast('Backup JSON imported!', 'success');
+          }
+        } catch(err) {
+          showToast('Failed to parse backup JSON', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function promptResetData() {
+      if (confirm('Reset application data and load initial default templates?')) {
+        localStorage.clear();
+        programs = [...defaultPrograms];
+        historyLogs = [...sampleHistory];
+        activeWorkout = null;
+        saveState();
+        renderApp();
+        showToast('Application reset', 'info');
+      }
+    }
+
+    function renderApp() {
+      switchTab(activeTab);
+    }
+
+    // --- TOAST MESSAGES ---
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let border = 'border-brand-500/40 text-slate-100';
+      let icon = 'fa-circle-check text-brand-400';
+      if (type === 'error') { border = 'border-rose-500/40 text-slate-100'; icon = 'fa-circle-exclamation text-rose-400'; }
+      if (type === 'info') { border = 'border-sky-500/40 text-slate-100'; icon = 'fa-circle-info text-sky-400'; }
+
+      toast.className = `glass-panel px-4 py-3 rounded-2xl border shadow-2xl text-xs font-semibold flex items-center space-x-2.5 transition transform translate-y-2 opacity-0 ${border} pointer-events-auto`;
+      toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${msg}</span>`;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+  </script>
+</body>
+</html>
